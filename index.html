@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Birthday Card Matching Game</title>
+
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #ffdde1, #ed3951);
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+
+        h1 {
+            color: #fff;
+            text-shadow: 2px 2px #ff69b4;
+            margin: 6px 0 4px;
+        }
+
+        .hud {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            margin: 8px 0;
+            color: #fff;
+        }
+
+        .hud div {
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.08);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        #controls {
+            margin: 8px 0;
+        }
+
+        button.primary {
+            background: #e71d67;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 120px);
+            gap: 15px;
+            justify-content: center;
+            margin: 20px auto;
+            padding: 10px;
+        }
+
+        .card {
+            width: 120px;
+            height: 120px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            border-radius: 14px;
+            transform-style: preserve-3d;
+            transition: transform 0.55s cubic-bezier(.2, .9, .3, 1);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .card.flip .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .face {
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .front {
+            background: linear-gradient(180deg, #fff6b2, #fff);
+            background: #ffb6c1 url('https://www.shutterstock.com/image-vector/anime-cartoon-characters-cute-cats-600nw-2478346641.jpg') center/50% no-repeat;
+            background-size: cover;
+        }
+
+        .back {
+            transform: rotateY(180deg);
+            background: #fff;
+            font-size: 2.5rem;
+        }
+
+        .matched-highlight .card-inner {
+            box-shadow: 0 0 0 4px rgba(0, 200, 100, 0.15), 0 6px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        /* fade-out animation for removing matched cards */
+        .fade-out {
+            animation: fadeOut .5s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            50% {
+                transform: translateX(5px);
+            }
+
+            75% {
+                transform: translateX(-5px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 1.6rem;
+            z-index: 50;
+            display: none;
+        }
+
+        #overlay .panel {
+            background: #fff;
+            color: #333;
+            padding: 22px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 260px;
+        }
+
+        /* Responsive styling for mobile and small screens */
+        @media (max-width: 600px) {
+            .game-board {
+                grid-template-columns: repeat(2, 45vw);
+                /* 2 columns, 45% viewport width each */
+                gap: 10px;
+                width: 100vw;
+                padding: 10px;
+            }
+
+            .card {
+                width: 45vw;
+                height: 45vw;
+            }
+
+            .face {
+                font-size: 8vw;
+                /* bigger emoji size on mobile */
+            }
+
+            button.primary {
+                padding: 12px 20px;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hud {
+                flex-direction: column;
+                gap: 8px;
+                font-size: 1.2rem;
+            }
+
+            #overlay .panel {
+                font-size: 1.4rem;
+                min-width: 90vw;
+                max-width: 320px;
+            }
+        }
+        
+    </style>
+</head>
+
+<body>
+
+    <h1>🎂 Birthday Card Match 🎉</h1>
+
+    <div class="hud">
+        <div>Score: <span id="score">0</span></div>
+        <div>Pairs: <span id="pairsFound">0</span> / <span id="pairsTotal">0</span></div>
+        <div>Time Left: <span id="time">60</span>s</div>
+    </div>
+
+    <div id="controls">
+        <button id="startBtn" class="primary">Start Game</button>
+        <button id="restartBtn" class="primary" style="display:none">Play Again</button>
+    </div>
+
+    <div class="game-board" id="gameBoard"></div>
+
+    <!-- overlay for win/lose -->
+    <div id="overlay">
+        <div class="panel" id="overlayPanel"></div>
+    </div>
+
+    <script>
+        /* ---------- configuration ---------- */
+        const icons = ["🎂", "🎁", "🎈", "🍰", "🎊", "🍭", "🎉", "🕯️"]; // 8 icons => 8 pairs, grid 4x4
+        const STARTING_TIME = 60; // seconds
+        /* ---------- state ---------- */
+        let cardsArray = [];
+        let firstCard = null, secondCard = null;
+        let lockBoard = false;
+        let score = 0;
+        let pairsFound = 0;
+        let totalPairs = icons.length;
+        let timerId = null;
+        let timeLeft = STARTING_TIME;
+        let gameStarted = false;
+        let gameWon = false;
+
+        /* ---------- dom refs ---------- */
+        const board = document.getElementById('gameBoard');
+        const scoreSpan = document.getElementById('score');
+        const pairsFoundSpan = document.getElementById('pairsFound');
+        const pairsTotalSpan = document.getElementById('pairsTotal');
+        const timeSpan = document.getElementById('time');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const overlay = document.getElementById('overlay');
+        const overlayPanel = document.getElementById('overlayPanel');
+
+        pairsTotalSpan.textContent = totalPairs;
+        timeSpan.textContent = STARTING_TIME;
+
+        /* ---------- helpers ---------- */
+        function buildBoard() {
+            // reset DOM board
+            board.innerHTML = '';
+            cardsArray = [...icons, ...icons];
+            // shuffle
+            cardsArray.sort(() => 0.5 - Math.random());
+
+            cardsArray.forEach((icon, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                // store value on dataset so comparisons are simple & safe
+                card.dataset.value = icon;
+
+                card.innerHTML = `
+            <div class="card-inner">
+                <div class="face front"></div>
+                <div class="face back">${icon}</div>
+            </div>
+        `;
+                card.addEventListener('click', onCardClick);
+                card.addEventListener('touchstart', onCardClick);
+                board.appendChild(card);
+            });
+
+            // reset HUD
+            score = 0; pairsFound = 0;
+            scoreSpan.textContent = score;
+            pairsFoundSpan.textContent = pairsFound;
+        }
+
+        function onCardClick(e) {
+            if (!gameStarted) return;            // disable clicking until game started
+            const card = e.currentTarget;
+            if (lockBoard) return;
+            if (card === firstCard) return;     // same card clicked twice
+            if (card.dataset.removed === 'true') return; // already removed
+
+            // flip
+            card.classList.add('flip');
+
+            if (!firstCard) {
+                firstCard = card;
+                return;
+            }
+
+            secondCard = card;
+            lockBoard = true; // prevent further clicks until check completes
+            checkMatch();
+        }
+
+        function checkMatch() {
+            const match = firstCard.dataset.value === secondCard.dataset.value;
+            if (match) {
+                handleMatch();
+            } else {
+                // Add shake animation for mismatch
+                firstCard.classList.add('shake');
+                secondCard.classList.add('shake');
+
+                setTimeout(() => {
+                    firstCard.classList.remove('shake');
+                    secondCard.classList.remove('shake');
+                }, 500); // matches your CSS animation duration
+
+                handleMismatch();
+            }
+        }
+
+        function handleMatch() {
+
+            // highlight matched cards briefly
+            firstCard.classList.add('matched-highlight');
+            secondCard.classList.add('matched-highlight');
+
+            // increment score/pairs, update HUD
+            score++;
+            pairsFound++;
+            scoreSpan.textContent = score;
+            pairsFoundSpan.textContent = pairsFound;
+
+            // after a short delay, remove from DOM with fade-out
+            setTimeout(() => {
+                // add fade-out to inner to animate
+                firstCard.classList.add('fade-out');
+                secondCard.classList.add('fade-out');
+
+                // mark as removed so clicks ignored
+                firstCard.dataset.removed = 'true';
+                secondCard.dataset.removed = 'true';
+
+                // actually remove after animation
+                setTimeout(() => {
+                    if (firstCard.parentNode) firstCard.parentNode.removeChild(firstCard);
+                    if (secondCard.parentNode) secondCard.parentNode.removeChild(secondCard);
+
+                    // clear references and unlock board
+                    resetSelection();
+                    lockBoard = false;
+
+                    // check win
+                    checkWin();
+                }, 500);
+            }, 600); // show highlight for a moment
+        }
+
+        function handleMismatch() {
+
+            // keep cards flipped for a moment so player sees them
+            setTimeout(() => {
+                firstCard.classList.remove('flip');
+                secondCard.classList.remove('flip');
+                resetSelection();
+                lockBoard = false;
+            }, 900);
+        }
+
+        function resetSelection() {
+            [firstCard, secondCard] = [null, null];
+        }
+
+        function startTimer() {
+            clearInterval(timerId);
+            timeLeft = STARTING_TIME;
+            timeSpan.textContent = timeLeft;
+            timerId = setInterval(() => {
+                timeLeft--;
+                timeSpan.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    endGame(false); // lose
+                }
+            }, 1000);
+        }
+
+        function checkWin() {
+            if (pairsFound === totalPairs) {
+                // stop timer & end game as win
+                clearInterval(timerId);
+                endGame(true);
+            }
+        }
+
+        function endGame(win) {
+            gameStarted = false;
+            if (win) {
+                // Trigger confetti celebration 🎉 only if player wins
+                confetti({
+                    particleCount: 200,
+                    spread: 90,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            // show overlay panel
+            overlayPanel.innerHTML = win
+                ? `🎉 You Win! Happy Birthday! 🎂 <br><br> Score: ${score} <br> Time left: ${timeLeft}s`
+                : `⏳ Time's up! Try again. <br><br> Score: ${score}`;
+
+            overlay.style.display = 'flex';
+            restartBtn.style.display = 'inline-block';
+            startBtn.style.display = 'none';
+        }
+
+        /* ---------- UI event bindings ---------- */
+        startBtn.addEventListener('click', () => {
+            // start the game: build board, start timer, allow clicks, start music
+            buildBoard();
+            startTimer();
+            gameStarted = true;
+            overlay.style.display = 'none';
+            restartBtn.style.display = 'none';
+            startBtn.style.display = 'none';
+
+            // try to play bgMusic; browsers allow play after user interaction like this click
+            bgMusic.play().catch(() => {/* ignore play errors */ });
+        });
+
+        restartBtn.addEventListener('click', () => {
+            // reset UI and rebuild
+            overlay.style.display = 'none';
+            buildBoard();
+            startTimer();
+            gameStarted = true;
+            restartBtn.style.display = 'none';
+            startBtn.style.display = 'none';
+        });
+
+        overlay.addEventListener('click', () => {
+            // clicking overlay hides it (optional)
+            overlay.style.display = 'none';
+        });
+
+        /* initialize board without starting timer (user must click Start) */
+        buildBoard();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</body>
+
+</html>
